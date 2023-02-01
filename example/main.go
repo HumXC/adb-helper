@@ -2,9 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/HumXC/adb-helper/helper"
@@ -12,30 +9,15 @@ import (
 
 func main() {
 	// 运行之前确保 adb 已经连接到了设备
-	helper := helper.New(RunADB)
-	err := helper.Input.Power()
+	helper := helper.Default()
+	devices, err := helper.Devices()
 	if err != nil {
 		fmt.Println(err)
 	}
-	time.Sleep(1000 * time.Millisecond)
-	b, err := helper.Screencap()
-	if err != nil {
-		fmt.Println(err)
+	if len(devices) == 0 {
+		return
 	}
-	f, _ := os.Create("./img.png")
-	defer f.Close()
-	f.Write(b)
-}
-
-func runCMD(cmd string, args ...string) ([]byte, error) {
-	c := exec.Command(cmd, args...)
-	out, err := c.Output()
-	if err != nil {
-		return out, err
-	}
-	return out, nil
-}
-func RunADB(args string) ([]byte, error) {
-	cmd := strings.Split(args, " ")
-	return runCMD("adb", cmd...)
+	devices[0].Power()
+	time.Sleep(time.Second)
+	devices[0].ScreencapTo("./sc.png")
 }

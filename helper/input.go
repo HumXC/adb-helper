@@ -2,47 +2,40 @@ package helper
 
 import "fmt"
 
-type InputMan struct {
-	adbRunner ADBRunner
+func (d *Device) Press(x, y, hold int) (err error) {
+	return d.Swipe(x, y, x, y, hold)
 }
 
-func (i *InputMan) Press(x, y, hold int) (err error) {
-	return i.Swipe(x, y, x, y, hold)
+func (d *Device) Click(x, y int) (err error) {
+	return d.Press(x, y, 50)
 }
 
-func (i *InputMan) Click(x, y int) (err error) {
-	return i.Press(x, y, 50)
-}
-
-func (i *InputMan) Swipe(startX, startY, endX, endY, hold int) error {
-	out, err := i.adbRunner(fmt.Sprintf("shell input touchscreen swipe %d %d %d %d %d", startX, startY, endX, endY, hold))
-	if err == nil {
-		err = ChexkError(out)
-	}
+func (d *Device) Swipe(startX, startY, endX, endY, hold int) error {
+	_, err := d.runner(fmt.Sprintf(d.preArg+"shell input touchscreen swipe %d %d %d %d %d", startX, startY, endX, endY, hold))
 	return err
 }
 
-func (i *InputMan) Text(str string) (err error) {
-	_, err = i.adbRunner("shell input text " + str)
+func (d *Device) Text(str string) (err error) {
+	_, err = d.runner(d.preArg + "shell input text " + str)
 	return
 }
 
-func (i *InputMan) Power() error {
-	return i.Keyevent("POWER")
+func (d *Device) Power() error {
+	return d.Keyevent("POWER")
 }
 
-func (i *InputMan) VolumeUp() error {
-	return i.Keyevent("VOLUME_UP")
+func (d *Device) VolumeUp() error {
+	return d.Keyevent("VOLUME_UP")
 }
 
-func (i *InputMan) VolumeDown() error {
-	return i.Keyevent("VOLUME_DOWN")
+func (d *Device) VolumeDown() error {
+	return d.Keyevent("VOLUME_DOWN")
 }
 
-func (i *InputMan) Del(count int) error {
+func (d *Device) Del(count int) error {
 	var err error
 	for j := 0; j < count; j++ {
-		err = i.Keyevent("DEL")
+		err = d.Keyevent("DEL")
 		if err != nil {
 			return err
 		}
@@ -50,19 +43,19 @@ func (i *InputMan) Del(count int) error {
 	return err
 }
 
-func (i *InputMan) Home() error {
-	return i.Keyevent("HOME")
+func (d *Device) Home() error {
+	return d.Keyevent("HOME")
 }
 
-func (i *InputMan) Back() error {
-	return i.Keyevent("BACK")
+func (d *Device) Back() error {
+	return d.Keyevent("BACK")
 }
 
-func (i *InputMan) Menu() error {
-	return i.Keyevent("MENU")
+func (d *Device) Menu() error {
+	return d.Keyevent("MENU")
 }
 
-func (i *InputMan) Keyevent(keycode string) (err error) {
-	_, err = i.adbRunner("shell input keyevent KEYCODE_" + keycode)
+func (d *Device) Keyevent(keycode string) (err error) {
+	_, err = d.runner(d.preArg + "shell input keyevent KEYCODE_" + keycode)
 	return
 }
