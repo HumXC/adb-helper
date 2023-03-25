@@ -1,6 +1,8 @@
 package adb
 
-import "os"
+import (
+	"os"
+)
 
 type Device struct {
 	IsOnline    bool
@@ -10,14 +12,15 @@ type Device struct {
 	Model       string
 	Device      string
 	TransportID int
-	runner      ADBRunner
-	// 命令前缀，是为 adb 指定设备的参数，形如 "-s 192.168.1.3"
-	preArg string
+	// 此处的 Cmd 已经带有指定设备的参数，例如 "-s 192.168.1.3"
+	// 当调用 Cmd("ls") 时，实际运行的命令是 "adb -s 192.168.1.3 shell ls"
+	Cmd   ADBRunner
+	Input Input
 }
 
 // 直接截图传输图片，截图过程中如果触碰屏幕，可能会导致失败
 func (d *Device) Screencap() ([]byte, error) {
-	return d.runner(d.preArg + "shell screencap -p")
+	return d.Cmd("shell screencap -p")
 }
 
 // 截图并保存文件到 fileName

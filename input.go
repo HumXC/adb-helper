@@ -1,41 +1,62 @@
 package adb
 
-import "fmt"
+import (
+	"fmt"
+)
 
-func (d *Device) Press(x, y, hold int) (err error) {
-	return d.Swipe(x, y, x, y, hold)
+type Input interface {
+	Press(x, y, duration int) error
+	Power() error
+	Click(x, y int) error
+	Swipe(x, y, x2, y2, duration int) error
+	Text(text string) error
+	VolumeDown() error
+	VolumeUp() error
+	Home() error
+	Back() error
+	Menu() error
+	Del(count int) error
+	Keyevent(event string) error
 }
 
-func (d *Device) Click(x, y int) (err error) {
-	return d.Press(x, y, 50)
+type input struct {
+	cmd ADBRunner
 }
 
-func (d *Device) Swipe(startX, startY, endX, endY, hold int) error {
-	_, err := d.runner(fmt.Sprintf(d.preArg+"shell input touchscreen swipe %d %d %d %d %d", startX, startY, endX, endY, hold))
+func (i *input) Press(x, y, duration int) (err error) {
+	return i.Swipe(x, y, x, y, duration)
+}
+
+func (i *input) Click(x, y int) (err error) {
+	return i.Press(x, y, 50)
+}
+
+func (i *input) Swipe(startX, startY, endX, endY, duration int) error {
+	_, err := i.cmd(fmt.Sprintf("shell input touchscreen swipe %d %d %d %d %d", startX, startY, endX, endY, duration))
 	return err
 }
 
-func (d *Device) Text(str string) (err error) {
-	_, err = d.runner(d.preArg + "shell input text " + str)
+func (i *input) Text(str string) (err error) {
+	_, err = i.cmd("shell input text " + str)
 	return
 }
 
-func (d *Device) Power() error {
-	return d.Keyevent("POWER")
+func (i *input) Power() error {
+	return i.Keyevent("POWER")
 }
 
-func (d *Device) VolumeUp() error {
-	return d.Keyevent("VOLUME_UP")
+func (i *input) VolumeUp() error {
+	return i.Keyevent("VOLUME_UP")
 }
 
-func (d *Device) VolumeDown() error {
-	return d.Keyevent("VOLUME_DOWN")
+func (i *input) VolumeDown() error {
+	return i.Keyevent("VOLUME_DOWN")
 }
 
-func (d *Device) Del(count int) error {
+func (i *input) Del(count int) error {
 	var err error
 	for j := 0; j < count; j++ {
-		err = d.Keyevent("DEL")
+		err = i.Keyevent("DEL")
 		if err != nil {
 			return err
 		}
@@ -43,19 +64,19 @@ func (d *Device) Del(count int) error {
 	return err
 }
 
-func (d *Device) Home() error {
-	return d.Keyevent("HOME")
+func (i *input) Home() error {
+	return i.Keyevent("HOME")
 }
 
-func (d *Device) Back() error {
-	return d.Keyevent("BACK")
+func (i *input) Back() error {
+	return i.Keyevent("BACK")
 }
 
-func (d *Device) Menu() error {
-	return d.Keyevent("MENU")
+func (i *input) Menu() error {
+	return i.Keyevent("MENU")
 }
 
-func (d *Device) Keyevent(keycode string) (err error) {
-	_, err = d.runner(d.preArg + "shell input keyevent KEYCODE_" + keycode)
+func (i *input) Keyevent(keycode string) (err error) {
+	_, err = i.cmd("shell input keyevent KEYCODE_" + keycode)
 	return
 }

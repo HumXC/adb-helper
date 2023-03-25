@@ -14,8 +14,8 @@ import (
 // run("shell ls")
 type ADBRunner = func(args string) ([]byte, error)
 
-type ADBHelp struct {
-	ADBRunner ADBRunner
+type Server struct {
+	Cmd ADBRunner
 }
 
 // adb 是运行 adb 时使用的命令，可以使用指定 adb 的路径，例如 "/usr/bin/adb"
@@ -27,7 +27,9 @@ func NewADBRunner(adb string) ADBRunner {
 		c.Stderr = &stdErr
 		out, err := c.Output()
 		if err != nil {
-			errStr := stdErr.String()
+			return out, err
+		}
+		if errStr := stdErr.String(); errStr != "" {
 			err = errors.New(errStr[:len(errStr)-1])
 			return out, err
 		}
@@ -36,14 +38,14 @@ func NewADBRunner(adb string) ADBRunner {
 	}
 }
 
-func (a *ADBHelp) KillServer() error {
-	_, err := a.ADBRunner("kill-server")
+func (s *Server) KillServer() error {
+	_, err := s.Cmd("kill-server")
 	return err
 }
 
 // 获取所有已经连接的设备
-func (a *ADBHelp) Devices() ([]Device, error) {
-	out, err := a.ADBRunner("devices -l")
+func (s *Server) Devices() ([]Device, error) {
+	out, err := s.Cmd("devices -l")
 	if err != nil {
 		return nil, err
 	}
@@ -81,34 +83,38 @@ func (a *ADBHelp) Devices() ([]Device, error) {
 				d.TransportID, _ = strconv.Atoi(arg[1])
 			}
 		}
-		d.runner = a.ADBRunner
-		d.preArg = "-s " + args[0] + " "
+		// cmd 增加设备前缀
+		d.Cmd = func(_args string) ([]byte, error) {
+			_args = "-s " + args[0] + " " + _args
+			return s.Cmd(_args)
+		}
+		d.Input = &input{cmd: d.Cmd}
 		result = append(result, d)
 	}
 	return result, nil
 }
 
 // 连接一个网络设备，如果 err==nil 那么连接成功
-func (a *ADBHelp) Connect(host string) error {
-	_, err := a.ADBRunner("connect " + host)
+func (s *Server) Connect(host string) error {
+	_, err := s.Cmd("connect " + host)
 	return err
 }
 
 // 断开网络设备的连接，如果 host=="" 则会断开所有网络设备连接
-func (a *ADBHelp) Disconnect(host string) error {
-	_, err := a.ADBRunner("disconnect " + host)
+func (s *Server) Disconnect(host string) error {
+	_, err := s.Cmd("disconnect " + host)
 	return err
 }
 
 // 使用机器自带的 adb 命令，需要安装 adb
-func Default() ADBHelp {
-	return New(NewADBRunner("adb"))
+func DefaultServer() Server {
+	return NewServer(NewADBRunner("adb"))
 }
 
-// / ADBRunner 见 NewADBRunner()，你也可以自己实现 ADBRunner
-func New(adbRunner ADBRunner) ADBHelp {
-	return ADBHelp{
-		ADBRunner: adbRunner,
+// cmd 见 NewADBRunner()，你也可以自己实现 ADBRunner
+func NewServer(cmd ADBRunner) Server {
+	return Server{
+		Cmd: cmd,
 	}
 }
 
