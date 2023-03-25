@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/HumXC/adb-helper/helper"
+	"github.com/HumXC/adb-helper"
 )
 
 func main() {
 	// 运行之前确保 adb 已经连接到了设备
-	helper := helper.Default()
+	helper := adb.Default()
 	devices, err := helper.Devices()
 	if err != nil {
 		fmt.Println(err)
