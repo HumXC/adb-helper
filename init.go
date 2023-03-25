@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -27,11 +28,11 @@ func NewADBRunner(adb string) ADBRunner {
 		c.Stderr = &stdErr
 		out, err := c.Output()
 		if err != nil {
-			return out, err
-		}
-		if errStr := stdErr.String(); errStr != "" {
-			err = errors.New(errStr[:len(errStr)-1])
-			return out, err
+			msg := err.Error()
+			if errStr := stdErr.String(); errStr != "" {
+				msg += ": " + errStr[:len(errStr)-1]
+			}
+			return out, fmt.Errorf("adb error [%s]: %s", c.String(), msg)
 		}
 		err = CheckError(out)
 		return out, err
