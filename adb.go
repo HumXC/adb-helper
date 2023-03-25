@@ -3,7 +3,6 @@ package adb
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -32,9 +31,12 @@ func NewADBRunner(adb string) ADBRunner {
 			if errStr := stdErr.String(); errStr != "" {
 				msg += ": " + errStr[:len(errStr)-1]
 			}
-			return out, fmt.Errorf("adb error [%s]: %s", c.String(), msg)
+			return out, fmt.Errorf("exec error [%s]: %s", c.String(), msg)
 		}
-		err = CheckError(out)
+		if IsErrorOutput(out) {
+			msg := string(out[:len(out)-1])
+			return out, fmt.Errorf("exec error [%s]: %s", c.String(), msg)
+		}
 		return out, err
 	}
 }
@@ -123,9 +125,9 @@ func NewServer(cmd ADBRunner) Server {
 // 另一方面，有些时候命令执行是成功的，但是执行的结果我将其视为 "失败"
 // 例如执行 adb connect "" 时 ，输出是 "empty address..."，我认为将其视为 error 是合适的
 // 此函数并未涵盖所有的可能的异常输出，我只是添加了我遇到的
-func CheckError(output []byte) (err error) {
+func IsErrorOutput(output []byte) bool {
 	if len(output) < 2 {
-		return
+		return false
 	}
 	outStr := string(output)
 	errFlag := []string{
@@ -136,8 +138,8 @@ func CheckError(output []byte) (err error) {
 	}
 	for _, flag := range errFlag {
 		if strings.HasPrefix(outStr, flag) {
-			return errors.New(outStr[:len(outStr)-1])
+			return true
 		}
 	}
-	return nil
+	return false
 }
