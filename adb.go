@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -13,9 +14,37 @@ import (
 // 用于执行 ADB 命令，例如:
 // run("shell ls")
 type ADBRunner = func(args string) ([]byte, error)
+type ADBRunnerWithReader = func(args string) (io.Reader, error)
 
 type Server struct {
-	Cmd ADBRunner
+	cmd     ADBRunner
+	adbPath string
+}
+
+func (s *Server) Cmd(args string) ([]byte, error) {
+	return s.cmd(args)
+}
+func (s *Server) ADBPath() string {
+	return s.adbPath
+}
+func NewADBRunnerWithReader(adb string) ADBRunnerWithReader {
+	return func(args string) (io.Reader, error) {
+		cmd := strings.Split(args, " ")
+		c := exec.Command(adb, cmd...)
+		var stderr *bytes.Buffer
+		var stdout *bytes.Buffer
+		c.Stderr = stderr
+		c.Stdout = stdout
+		err := c.Run()
+		if err != nil {
+			msg := err.Error()
+			if errStr := stderr.String(); errStr != "" {
+				msg += ": " + errStr[:len(errStr)-1]
+			}
+			return nil, fmt.Errorf("exec error [%s]: %s", c.String(), msg)
+		}
+		return stdout, nil
+	}
 }
 
 // adb 是运行 adb 时使用的命令，可以使用指定 adb 的路径，例如 "/usr/bin/adb"
@@ -23,12 +52,12 @@ func NewADBRunner(adb string) ADBRunner {
 	return func(args string) ([]byte, error) {
 		cmd := strings.Split(args, " ")
 		c := exec.Command(adb, cmd...)
-		var stdErr bytes.Buffer
-		c.Stderr = &stdErr
+		var stderr bytes.Buffer
+		c.Stderr = &stderr
 		out, err := c.Output()
 		if err != nil {
 			msg := err.Error()
-			if errStr := stdErr.String(); errStr != "" {
+			if errStr := stderr.String(); errStr != "" {
 				msg += ": " + errStr[:len(errStr)-1]
 			}
 			return out, fmt.Errorf("exec error [%s]: %s", c.String(), msg)
@@ -91,6 +120,7 @@ func (s *Server) Devices() ([]Device, error) {
 			_args = "-s " + args[0] + " " + _args
 			return s.Cmd(_args)
 		}
+		d.ADBPath = s.ADBPath()
 		d.Input = &input{cmd: d.Cmd}
 		result = append(result, d)
 	}
@@ -111,13 +141,15 @@ func (s *Server) Disconnect(host string) error {
 
 // 使用机器自带的 adb 命令，需要安装 adb
 func DefaultServer() Server {
-	return NewServer(NewADBRunner("adb"))
+	return NewServer(NewADBRunner("adb"), "adb")
 }
 
 // cmd 见 NewADBRunner()，你也可以自己实现 ADBRunner
-func NewServer(cmd ADBRunner) Server {
+// adbPath 是 adb 的路径
+func NewServer(cmd ADBRunner, adbPath string) Server {
 	return Server{
-		Cmd: cmd,
+		cmd:     cmd,
+		adbPath: adbPath,
 	}
 }
 
